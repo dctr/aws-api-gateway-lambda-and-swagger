@@ -1,0 +1,11 @@
+app_project_name: my-project
+app_name: my-app
+app_region: ap-southeast-2
+lambda_build_dir: dist
+
+template_params:
+  PLambdaName: 'my-lambda'
+  PLambdaRuntime: nodejs4.3
+  PLambdaHandler: index.handler
+  PLambdaS3Key: '{{ lambda_zip_for_s3 }}'
+  PLambdaS3Bucket: '{{ lambda_bucket }}'

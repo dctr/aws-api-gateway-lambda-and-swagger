@@ -1,0 +1,9 @@
+#!/bin/bash -eu
+
+APP_NAME=my-app
+
+cd $(dirname $0)/..
+
+trap "docker-compose down --volumes --remove-orphans" 0
+docker-compose build ${APP_NAME}
+docker-compose run --rm ${APP_NAME} /app/bin/test

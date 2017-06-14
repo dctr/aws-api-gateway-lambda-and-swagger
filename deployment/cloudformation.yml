@@ -1,0 +1,275 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Hew Homes BFF stack
+
+Parameters:
+  PLambdaS3Key:
+    Description: File name of the ZIP in the S3 bucket
+    Type: String
+  PLambdaS3Bucket:
+    Description: Name of the S3 bucket containing the ZIP
+    MaxLength: '128'
+    MinLength: '1'
+    Type: String
+  PLambdaHandler:
+    Description: Handler function name inside the lambda code
+    Type: String
+  PLambdaName:
+    Description: Name for the Lambda function
+    Type: String
+  PLambdaRuntime:
+    Description: Lambda run time to use
+    Type: String
+    AllowedValues:
+    - java8
+    - nodejs4.3
+    - nodejs6.10
+    - python2.7
+
+Resources:
+
+  LambdaFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket: !Ref PLambdaS3Bucket
+        S3Key: !Ref PLambdaS3Key
+      FunctionName: !Ref PLambdaName
+      Handler: !Ref PLambdaHandler
+      MemorySize: '512'
+      Role: !GetAtt LambdaIamRole.Arn
+      Runtime: !Ref PLambdaRuntime
+      Timeout: '240'
+
+  LambdaIamRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+        - Action:
+          - sts:AssumeRole
+          Effect: Allow
+          Principal:
+            Service:
+            - lambda.amazonaws.com
+        Version: '2012-10-17'
+      Path: /
+      Policies:
+      - PolicyDocument:
+          Statement:
+          - Action: iam:ListAccountAliases
+            Effect: Allow
+            Resource: '*'
+          - Action:
+            - logs:CreateLogGroup
+            - logs:CreateLogStream
+            - logs:PutLogEvents
+            Effect: Allow
+            Resource: arn:aws:logs:*:*:*
+          Version: '2012-10-17'
+        PolicyName: PermitLambda
+
+  ApiGatewayRestApi:
+    Type: AWS::ApiGateway::RestApi
+    Properties:
+      Name: MyApi
+      Description: My AWS API Gateway config
+      Body:
+        ### SWAGGER_START !!! DO NOT ALTER THIS LINE !!!
+        swagger: '2.0'
+        info:
+          title: My API
+          description: My AWS API Gateway config
+          version: '1.0.0'
+        schemes:
+        - https
+        basePath: /api/v1
+        produces:
+        - application/json
+        definitions:
+          Listing:
+            type: object
+            properties:
+              id:
+                type: string
+                description: Listing ID
+              title:
+                type: string
+                description: Title of the listing.
+              address:
+                type: object
+                description: Address of the listing.
+                properties:
+                  suburb:
+                    type: string
+                    description: Suburb of the listing.
+                  state:
+                    type: string
+                    description: State of the listing.
+                  postcode:
+                    type: string
+                    description: Postcode of the listing.
+                  fullAddress:
+                    type: string
+                    description: Full address of the listing.
+        paths:
+          /listings:
+            get:
+              summary: Get Project Profiles
+              description: |
+                This endpoint returns information about listings
+                with a specific state, surburb and post code.
+              parameters:
+              - name: state
+                in: query
+                description: state
+                required: false
+                type: string
+              - name: suburb
+                in: query
+                description: suburb
+                required: false
+                type: string
+              - name: postcode
+                in: query
+                description: postcode
+                required: false
+                type: string
+              tags:
+              - REA
+              - Listings
+              responses:
+                '200':
+                  description: Project profiles
+                  headers:
+                    Access-Control-Allow-Headers:
+                      type: "string"
+                    Access-Control-Allow-Methods:
+                      type: "string"
+                    Access-Control-Allow-Origin:
+                      type: "string"
+                  schema:
+                    $ref: '#/definitions/Listing'
+              ### SWAGGER_END !!! DO NOT ALTER THIS LINE !!!
+              x-amazon-apigateway-integration:
+                type: aws
+                responses:
+                  default:
+                    statusCode: '200'
+                    responseParameters:
+                      method.response.header.Access-Control-Allow-Headers : "'Content-Type'"
+                      method.response.header.Access-Control-Allow-Methods : "'*'"
+                      method.response.header.Access-Control-Allow-Origin : "'*'"
+                # Yes, indeed it needs to be POST!
+                httpMethod: POST
+                credentials: !GetAtt ApiGatewayIamRole.Arn
+                requestTemplates:
+                  application/json: '#set($allParams = $input.params()) { #foreach($type in $allParams.keySet()) #set($params = $allParams.get($type)) "$type" : { #foreach($paramName in $params.keySet()) "$paramName" : "$util.escapeJavaScript($params.get($paramName))" #if($foreach.hasNext),#end #end } #if($foreach.hasNext),#end #end }'
+                uri: !Join
+                - ''
+                -
+                  - 'arn:aws:apigateway:'
+                  - !Ref 'AWS::Region'
+                  - ':lambda:path/2015-03-31/functions/arn:aws:lambda:'
+                  - !Ref 'AWS::Region'
+                  - ':'
+                  - !Ref 'AWS::AccountId'
+                  - ':function:'
+                  - !Ref PLambdaName
+                  - '/invocations'
+            options:
+              summary: CORS support
+              description: Enable CORS by returning correct headers
+              consumes:
+              - application/json
+              produces:
+              - application/json
+              tags:
+              - CORS
+              x-amazon-apigateway-integration:
+                type: mock
+                requestTemplates:
+                  application/json: |
+                    {
+                      "statusCode" : 200
+                    }
+                responses:
+                  "default":
+                    statusCode: "200"
+                    responseParameters:
+                      method.response.header.Access-Control-Allow-Headers : "'Content-Type'"
+                      method.response.header.Access-Control-Allow-Methods : "'*'"
+                      method.response.header.Access-Control-Allow-Origin : "'*'"
+                    responseTemplates:
+                      application/json: |
+                        {}
+              responses:
+                '200':
+                  description: Default response for CORS method
+                  headers:
+                    Access-Control-Allow-Headers:
+                      type: "string"
+                    Access-Control-Allow-Methods:
+                      type: "string"
+                    Access-Control-Allow-Origin:
+                      type: "string"
+        x-amazon-apigateway-request-validators:
+          params-only:
+            validateRequestBody: false
+            validateRequestParameters: true
+        x-amazon-apigateway-request-validator : params-only
+
+  ApiGatewayIamRole:
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+        - Action:
+          - sts:AssumeRole
+          Effect: Allow
+          Principal:
+            Service:
+            - apigateway.amazonaws.com
+        Version: '2012-10-17'
+      Path: /
+      Policies:
+      - PolicyDocument:
+          Statement:
+          - Action:
+            - lambda:InvokeFunction
+            - iam:PassRole
+            Effect: Allow
+            Resource: '*'
+        PolicyName: PermitApiGateway
+    Type: AWS::IAM::Role
+
+  ApiGatewayDeployment:
+    Type: AWS::ApiGateway::Deployment
+    Properties:
+      RestApiId:
+        Ref: ApiGatewayRestApi
+
+  ApiGatewayStage:
+    Type: AWS::ApiGateway::Stage
+    Properties:
+      StageName: latest
+      Description: latest stage
+      RestApiId:
+        Ref: ApiGatewayRestApi
+      DeploymentId:
+        Ref: ApiGatewayDeployment
+      MethodSettings:
+        - LoggingLevel: INFO
+          HttpMethod: "*"
+          DataTraceEnabled: true
+          ResourcePath: "/*"
+          CachingEnabled: true
+          CacheTtlInSeconds: 60
+          MetricsEnabled: true
+
+  Account:
+    Type: "AWS::ApiGateway::Account"
+    Properties:
+      CloudWatchRoleArn: !GetAtt ApiGatewayIamRole.Arn
+
+Outputs:
+  LambdaFunction:
+    Value: !Ref LambdaFunction

@@ -1,0 +1,5 @@
+steps:
+  - label: ':pray: Execute Tests'
+    command: auto/test
+  - label: ':clap: Deploy'
+    command: auto/ci

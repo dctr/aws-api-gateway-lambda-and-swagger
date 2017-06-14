@@ -1,0 +1,22 @@
+#!/bin/bash -eu
+
+APP_NAME=my-app
+ANSIBLE_NAME=ansible
+
+# Setup
+cd $(dirname $0)/..
+APP_DIR=$(pwd)
+ANSIBLE_DIR="${APP_DIR}/../ansible"
+trap "docker-compose down --volumes --remove-orphans" 0
+
+# Build
+docker-compose build ${APP_NAME}
+docker-compose run --rm ${APP_NAME} /app/bin/deploy-app
+
+# Run Ansible
+rm -rf ${ANSIBLE_DIR}
+git clone git@git.realestate.com.au:devlob-media/ansible.git ${ANSIBLE_DIR}
+docker-compose run --rm ${ANSIBLE_NAME} "SOME PARAMS"
+
+# Upload Swagger file
+docker-compose run --rm ${APP_NAME} /app/bin/deploy-api

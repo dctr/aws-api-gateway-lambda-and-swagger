@@ -1,0 +1,21 @@
+version: '2'
+
+services:
+  new-homes-bff:
+    build: .
+    volumes:
+    - .:/app
+    working_dir : /app
+    environment:
+    - BUILD_NUMBER=${BUILDKITE_BUILD_NUMBER}
+
+  ansible:
+    image: corporate-registry/ansible:latest
+    volumes:
+    - .:/app
+    - ../ansible:/ansible
+    environment:
+    - AWS_ACCESS_KEY_ID
+    - AWS_SECRET_ACCESS_KEY
+    - AWS_SECURITY_TOKEN
+    - BUILD_NUMBER=${BUILDKITE_BUILD_NUMBER}

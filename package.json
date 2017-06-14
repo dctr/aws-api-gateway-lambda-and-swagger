@@ -1,0 +1,32 @@
+{
+  "name": "my-app",
+  "version": "1.0.0",
+  "description": "Do cool stuff",
+  "main": "index.js",
+  "repository": "git://...",
+  "author": "David Christ <david.christ@rea-group.com",
+  "license": "UNLICENCED",
+  "private": true,
+  "engines": {
+    "node": "~4.3.2"
+  },
+  "scripts": {
+    "pretest": "eslint *.js lib/*.js lib/**/*.js test/*.js test/**/*.js",
+    "test": "istanbul cover _mocha -- --recursive",
+    "posttest": "istanbul check-coverage --branches 90 --functions 90 --lines 90 --statements 90"
+  },
+  "dependencies": {
+  },
+  "devDependencies": {
+    "chai": "^3.5.0",
+    "eslint": "^3.17.1",
+    "eslint-config-airbnb": "^14.1.0",
+    "eslint-plugin-import": "^2.2.0",
+    "eslint-plugin-jsx-a11y": "^4.0.0",
+    "eslint-plugin-react": "^6.10.0",
+    "istanbul": "^0.4.5",
+    "mocha": "^3.2.0",
+    "mock-require": "^2.0.1",
+    "sinon": "^1.17.7"
+  }
+}

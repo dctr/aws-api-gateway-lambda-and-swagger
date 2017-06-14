@@ -1,0 +1,16 @@
+#!/bin/bash -eu
+
+cd $(dirname $0)/..
+
+rm -rf docs/
+mkdir docs/
+# Grep 100k lines **A**fter and 100k lines **B**efore the markers,
+# except for those lines themselves and un-indent them
+# to extract the swagger from cloudformation.yml
+grep -A100000 SWAGGER_START deployment/cloudformation.yml \
+  | grep -B100000 SWAGGER_END \
+  | egrep -v "SWAGGER_START|SWAGGER_END" \
+  | sed 's/^        //' \
+  > docs/api.yml
+
+aws s3 cp docs/api.yml s3://${BUCKET_NAME}/files/api.yml
